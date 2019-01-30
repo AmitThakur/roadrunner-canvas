@@ -8,11 +8,29 @@ var startTime;
 var currentY = Y_MAX;
 var currentT = 0;
 var GRAVITY_ACCELERATION = 1500;
-var INITIAL_VELOCITY = 600;
+var INITIAL_VELOCITY = 700;
+var jumpInterval;
 var paintInterval;
+var hurdleInterval;
 var X_OFFSET = 50;
 var INTERVAL = 10; // In ms
 var inFlight = false;
+var cloud;
+var bigCloudPosX = canvas.width;
+var bigCloudHeight = 50;
+var bigCloudWidth = 100;
+var bigCloudOffsetY = 30;
+
+var smallCloudPosX = bigCloudPosX + 300;
+var smallCloudHeight = 30;
+var smallCoudWidth = 50;
+var smallCloudOffsetY = 50;
+
+var hurdles = [];
+var lastHurdleDate;
+var HURDLE_GAP_SEC = 2;
+var firstHurdlePosX = canvas.width;
+var firstHurdleWidth;
 
 function calculateYPos() {
     currentT = ((new Date()) - startTime) / 1000;
@@ -23,13 +41,14 @@ function paintPosition() {
     var calculatedY = calculateYPos();
     if (calculatedY != currentY) {
         currentY = calculatedY;
-        if ((currentY - blockSize / 2) > Y_MAX) {
-            clearInterval(paintInterval);
+        if (currentY > Y_MAX) {
+            currentY = Y_MAX;
+            clearInterval(jumpInterval);
             inFlight = false;
             return;
         }
         clearCanvas();
-        ctx.fillRect(X_OFFSET, currentY, blockSize, blockSize);
+        paintBackground();
     }
 }
 
@@ -37,16 +56,101 @@ function clearCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
+function calculateCloudPosition(currentPosX, cloudWidth) {
+    currentPosX -= 1;
+    if ((currentPosX + cloudWidth) < 0) {
+        currentPosX = canvas.width;
+    }
+    return currentPosX;
+}
+
+function paintBackground() {
+    
+    // set green grass
+    ctx.fillStyle = '#35B010'; 
+    ctx.fillRect(0, 150, canvas.width, canvas.height-150);
+
+    // set blue sky
+    ctx.fillStyle = 'skyblue';
+    ctx.fillRect(0, 0, canvas.width, 150);
+
+    bigCloudPosX = calculateCloudPosition(bigCloudPosX, bigCloudWidth);
+    smallCloudPosX = calculateCloudPosition(smallCloudPosX, bigCloudWidth);
+
+    // larger cloud 
+    ctx.drawImage(cloud, bigCloudPosX, bigCloudOffsetY, bigCloudWidth, bigCloudHeight);
+    // smaller cloud
+    ctx.drawImage(cloud,  smallCloudPosX, smallCloudOffsetY, smallCoudWidth, smallCloudHeight);
+    
+    
+
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(X_OFFSET, currentY, blockSize, blockSize);
+    paintHurdles();
+    updateHurdles();
+}
+
 function jump() {
     if (!inFlight) {
         inFlight = true;
         startTime = new Date();
-        paintInterval = setInterval(paintPosition, INTERVAL);
+        jumpInterval = setInterval(paintPosition, INTERVAL);
+    }
+}
+
+function paintHurdles() {
+    var posX = firstHurdlePosX;
+    for (var hurdle of hurdles) {
+        ctx.fillRect(posX, canvas.height - hurdle.height, hurdle.width, hurdle.height);
+        posX += hurdle.width;
+        posX += hurdle.offsetX;
+    }
+}
+
+function removeFirstHurdle() {
+    hurdles.shift();
+}
+
+function addNewHurdle() {
+    hurdles.push({ 
+        height  : 20 + parseInt(Math.random() * 80),
+        offsetX : 200 + parseInt((Math.random() * 100)),
+        width   : 20 + parseInt(Math.random() * 10)
+    });
+}
+
+function updateHurdles() {
+    firstHurdlePosX -= 2;
+    if ((firstHurdlePosX + firstHurdleWidth) < 0) {
+        firstHurdlePosX = hurdles[0].offsetX;
+        removeFirstHurdle();
+        addNewHurdle();
+        firstHurdleWidth = hurdles[0].width;
+    } 
+
+    if (hurdles.length < 3) {
+        addNewHurdle();
     }
 }
 
 function initCanvas() {
-    ctx.fillRect(X_OFFSET, currentY, blockSize, blockSize);
+    cloud = new Image();
+    cloud.src = 'images/cloud.svg';
+    cloud.onload = () => {
+
+        paintInterval = setInterval(function () {
+            if (!inFlight) {
+                clearCanvas();
+                paintBackground();
+            }
+        }, INTERVAL);
+
+        addNewHurdle();
+        addNewHurdle();
+        addNewHurdle();
+        firstHurdleWidth = hurdles[0].width;
+    };
+    
 }
 
 document.onload = initCanvas();
