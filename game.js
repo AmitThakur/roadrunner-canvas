@@ -2,6 +2,17 @@ var canvas = document.getElementById('game-canvas');
 var ctx = canvas.getContext('2d');
 ctx.fillStyle = '#000000';
 
+var gameState = 'stopped';
+
+const GameState = Object.freeze({
+    STOPPED:   Symbol("stopped"),
+    PAUSED:  Symbol("paused"),
+    RUNNING: Symbol("running")
+});
+var gameScore = 0;
+var highestScore = 0;
+const highestScoreKey = 'ROADRUNNER_HIGHEST_SCORE';
+var gameState = GameState.STOPPED;
 var blockSize = 10;
 var Y_MAX = canvas.height-blockSize;
 var startTime;
@@ -57,13 +68,28 @@ function isNonOverlappingRange(ax1, ax2, bx1, bx2) {
 }
 
 function collisionStop() {
-    clearInterval(jumpInterval);
-    clearInterval(paintInterval);
+    stopGame();
+    paintGameOver();
+}
+
+function paintGameOver() {
     ctx.font = '30px Comic Sans MS';
     ctx.fillStyle = 'red';
     ctx.textAlign = 'center';
     ctx.fillText('Game over!', canvas.width/2, canvas.height/2);
     ctx.fillStyle = 'black';
+}
+
+function stopGame() {
+    clearInterval(jumpInterval);
+    clearInterval(paintInterval);
+    gameState = GameState.STOPPED;
+    processAndStoreGameScore();
+}
+
+function processAndStoreGameScore() {
+    highestScore = highestScore > gameScore ? highestScore : gameScore;
+    localStorage.setItem(highestScoreKey, highestScore + '');
 }
 
 function paintPosition() {
@@ -93,6 +119,14 @@ function calculateCloudPosition(currentPosX, cloudWidth) {
     return currentPosX;
 }
 
+function paintScores() {
+    ctx.font = '10px Comic Sans MS';
+    ctx.textAlign = 'right';
+    ctx.fillText('Current Score: ' + gameScore, canvas.width-20, 20);
+    ctx.fillText('Highest Score: ' + highestScore, canvas.width-20, 40);
+    ctx.fillStyle = 'black';
+}
+
 function paintBackground() {
     
     // set green grass
@@ -116,7 +150,9 @@ function paintBackground() {
     ctx.fillStyle = '#000000';
     ctx.fillRect(X_OFFSET, currentY, blockSize, blockSize);
     paintHurdles();
+    paintScores();
     updateHurdles();
+    
 }
 
 function jump() {
@@ -147,6 +183,7 @@ function removeFirstHurdle() {
 }
 
 function addNewHurdle() {
+    gameScore += 100;
     hurdles.push({ 
         height  : 20 + parseInt(Math.random() * 80),
         offsetX : 200 + parseInt((Math.random() * 100)),
@@ -168,7 +205,9 @@ function updateHurdles() {
     }
 }
 
-function initCanvas() {
+function initGame() {
+    initData();
+    gameState = GameState.RUNNING;
     cloud = new Image();
     cloud.src = 'images/cloud.svg';
     cloud.onload = () => {
@@ -184,8 +223,56 @@ function initCanvas() {
         addNewHurdle();
         addNewHurdle();
         firstHurdleWidth = hurdles[0].width;
+        gameScore = 0;
     };
     
 }
 
-document.onload = initCanvas();
+document.onload = initGame();
+
+document.body.onkeydown = function(e) {
+    // If bar key is pressed
+    if(e.keyCode == 32) {
+        if (gameState == GameState.STOPPED) {
+            initGame();
+        }
+        jump();
+    }
+}
+
+function fetchHighestGameScore() {
+    var highestScoreStr = localStorage.getItem(highestScoreKey);
+    if (highestScoreStr) {
+        return parseInt(highestScoreStr);
+    }
+    return 0;
+}
+
+
+function initData() {
+    highestScore = fetchHighestGameScore();
+    gameScore = 0;
+    gameState = GameState.STOPPED;
+    blockSize = 10;
+    Y_MAX = canvas.height-blockSize;
+    currentY = Y_MAX;
+    currentT = 0;
+    GRAVITY_ACCELERATION = 1500;
+    INITIAL_VELOCITY = 700;
+    X_OFFSET = 50;
+    INTERVAL = 10; // In ms
+    inFlight = false;
+    bigCloudPosX = canvas.width;
+    bigCloudHeight = 50;
+    bigCloudWidth = 100;
+    bigCloudOffsetY = 30;
+
+    smallCloudPosX = bigCloudPosX + 300;
+    smallCloudHeight = 30;
+    smallCoudWidth = 50;
+    smallCloudOffsetY = 50;
+
+    hurdles = [];
+    HURDLE_GAP_SEC = 2;
+    firstHurdlePosX = canvas.width;
+}
