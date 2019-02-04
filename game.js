@@ -37,6 +37,35 @@ function calculateYPos() {
     return Y_MAX - ((INITIAL_VELOCITY * currentT)- ( 0.5 * GRAVITY_ACCELERATION * Math.pow(currentT, 2)));
 }
 
+function hasCollided(objectCoord, hurdleCoord) {
+    var objectX1 = objectCoord.x;
+    var objectX2 = objectCoord.x + objectCoord.width;
+    var objectY1 = objectCoord.y;
+    var objectY2 = objectCoord.y + objectCoord.height;
+
+    var hurdleX1 = hurdleCoord.x;
+    var hurdleX2 = hurdleCoord.x + hurdleCoord.width;
+    var hurdleY1 = hurdleCoord.y;
+    var hurdleY2 = hurdleCoord.y + hurdleCoord.height;
+
+    return !(isNonOverlappingRange(objectX1, objectX2, hurdleX1, hurdleX2))
+    && !(isNonOverlappingRange(objectY1, objectY2, hurdleY1, hurdleY2));
+}
+
+function isNonOverlappingRange(ax1, ax2, bx1, bx2) {
+    return (ax2 < bx1) || (bx2 < ax1);
+}
+
+function collisionStop() {
+    clearInterval(jumpInterval);
+    clearInterval(paintInterval);
+    ctx.font = '30px Comic Sans MS';
+    ctx.fillStyle = 'red';
+    ctx.textAlign = 'center';
+    ctx.fillText('Game over!', canvas.width/2, canvas.height/2);
+    ctx.fillStyle = 'black';
+}
+
 function paintPosition() {
     var calculatedY = calculateYPos();
     if (calculatedY != currentY) {
@@ -101,7 +130,13 @@ function jump() {
 function paintHurdles() {
     var posX = firstHurdlePosX;
     for (var hurdle of hurdles) {
-        ctx.fillRect(posX, canvas.height - hurdle.height, hurdle.width, hurdle.height);
+        var posY = canvas.height - hurdle.height;
+        ctx.fillRect(posX, posY, hurdle.width, hurdle.height);
+        if (hasCollided(
+            {'x': X_OFFSET, 'y' : currentY, 'width' : blockSize, 'height' : blockSize}, 
+            {'x' : posX, 'y' : posY, 'width' : hurdle.width, 'height' : hurdle.height})) {
+                collisionStop();
+        }
         posX += hurdle.width;
         posX += hurdle.offsetX;
     }
